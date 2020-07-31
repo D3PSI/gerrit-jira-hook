@@ -6,7 +6,9 @@
 '''
 import os
 import sys
+import re
 import requests
+import subprocess
 import configparser
 import getopt
 import logging as log
@@ -25,10 +27,10 @@ JIRA_URL = config.get('gerrit-jira-hook', 'jira_url')
 JIRA_USER = config.get('gerrit-jira-hook', 'jira_user')
 JIRA_PASS = config.get('gerrit-jira-hook', 'jira_pass')
 
-PROJECTS = config.get('gerrit-jira-hook', 'gerrit_projects')
+PROJECTS = config.get('gerrit-jira-hook', 'gerrit_projects').split(',')
 
-def show_usage():
-    print('\nNormal hook usage: ' + sys.argv[0] + ' --action [new|merged|abandoned] --change <change id> --commit <git hash> --change-url <url to change> --branch <branch name>')
+GERRIT_USER = config.get('gerrit-jira-hook', 'gerrit_user')
+GERRIT_SSHD = 'ssh -p 29418 ' + GERRIT_USER + '@localhost gerrit'
 
 
 def init():
@@ -37,62 +39,75 @@ def init():
         if len(sys.argv) < 2:
             show_usage()
             exit()
-        necessary = ['action=', 'change=', 'change-url=', 'commit=',
-                    'project=', 'branch=', 'uploader=', 'patchset=',
-                    'abandoner=', 'reason=', 'submitter=', 'kind=',
-                    'is-draft=', 'change-owner=', 'newrev=', 'topic=']
-        optlist, args = getopt.getopt(sys.argv[1:], '', necessary)
-        id = ''
-        url = ''
-        hash = ''
-        who = '' 
-        topic = ''
+        arguments = ['change', 'change-url', 'change-owner',
+                    'change-owner-username', 'project',
+                    'commit', 'branch', 'submitter',
+                    'submitter-username' 'newrev', 'topic']
+        optlist, args = getopt.getopt(sys.argv[1:], '', [i + '=' for i in arguments])
+        values = {}
         for o, a in optlist:
-            if o == '--change':
-                id = a
-                log.debug("[DEBUG] Optlist Change-ID: " + id)
-            elif o == '--change-url':
-                url = a
-                log.debug("[DEBUG] Optlist Change-URL: " + url)
-            elif o == '--commit':
-                hash = a
-                log.debug("[DEBUG] Optlist Commit-ID (Hash): " + hash)
-            elif o == '--action':
-                what = a
-                log.debug("[DEBUG] Optlist action: " + what)
-            elif o == '--uploader':
-                who = a
-                log.debug("[DEBUG] Optlist uploader (who): " + who)
-            elif o == '--submitter':
-                who = a
-                log.debug("[DEBUG] Optlist submitter (who): " + who)
-            elif o == '--abandoner':
-                who = a
-                log.debug("[DEBUG] Optlist abandoner (who): " + who)
-            elif o == '--branch':
-                branch = a
-                log.debug("[DEBUG] Optlist branch: " + branch)
-            elif o == '--topic':
-                topic = a
-                log.debug("[DEBUG] Optlist topic: " + topic)
-        if (len(what) > 0 and len(id) > 0):
-            jira_hook(what, id, hash, url, who, branch, topic)
+            values[o[2:]] = a
+            log.debug('CLI-Option ' + o + ':\t\t' + a)
+        if project in PROJECTS or PROJECTS == 'All-Projects':
+            jira_hook(values)
         else:
-            show_usage()
+            exit(1)
     except PermissionError:
         print('Permission Error creating/opening log at "' + log_path + '"')
         raise
 
 
-def find_issue_identifier(commit_msg):
-    return ''
+def find_issue_identifier(change, jira_instance):
+    log.debug('Running Gerrit query command...')
+    proc = subprocess.Popen([GERRIT_SSHD, ' query --format TEXT change:', change, ' limit:1'], 
+        stdout=subprocess.PIPE, shell=True)
+    (out, status) = proc.communicate()
+    if status != 0:
+        log.error('Failed to run Gerrit query command')
+        exit(1)
+    else:
+        commit_information = {}
+        commit_information['subject'] = re.search('subject: (.*)\n', out).group(1)
+        log.debug('Change-Id query delivered the following subject result: ' + commit_information['subject'])
+        commit_information['project'] = re.search('project: (.*)\n', out).group(1)
+        log.debug('Change-Id query delivered the following project result: ' + commit_information['project'])
+        log.debug('Detecting issue-id\'s...')
+        issues = []
+        issue_pattern = '(%s-[0-9]+)'
+        projects = jira_instance.projects()
+        for project in projects:
+            matches = re.findall(issue_pattern % project, subject)
+            for m in matches:
+                log.debug('Found issue-id: ' + m)
+                issues.append(m)
+        return commit_information, issues
 
 
-def generate_comment():
-    return ''
+def generate_comment(values, commit_information, issue_id):
+    comment_template = """
+    *{change_owner_username}* committed changes for {issue_id}: 
+    {change_url}
+    {{quote}}
+    Subject: *{subject}*
+    Project: {project} 
+    Branch: {branch} 
+    Change-Id: {change_id} 
+    Commit: {commit} 
+    {{quote}}
+    This change was reviewed and approved by *{submitter_username}*.
+    """
+    return comment_template.format(change_owner_username=values['change-owner-username'],
+                                   issue_id=issue_id,
+                                   change_url=values['change-url'],
+                                   subject=commit_information['subject'],
+                                   project=commit_information['project'],
+                                   branch=values['branch'],
+                                   change_id=values['change'],
+                                   commit=values['commit'],
+                                   submitter_username=values['submitter-username'])
 
 
-def jira_hook(what, id, hash, url, who, branch, topic):
+def jira_hook(values):
     '''
     The main function for the Gerrit-hook to post a comment on a JIRA-ticket 
     with the Change-Id and other information whenever an issue-id is detected in
@@ -112,10 +127,21 @@ def jira_hook(what, id, hash, url, who, branch, topic):
         log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
             + '" timed out')
         exit(1)
-    issue_id = find_issue_identifier(topic)
-    if issue_id != '':
-        log.debug('Generating comment for Issue "' + issue_id + '"...')
-        comment = generate_comment()
+    commit_information, issue_ids = find_issue_identifier(values['change'], jira_instance)
+    for issue_id in issue_ids:
+        log.debug('Generating comment for issue "' + issue_id + '"...')
+        comment = generate_comment(values, commit_information, issue_id)
+        try:
+            log.debug('Connecting to issue "' + issue_id + '"...')
+            jira_instance.issue(issue_id)
+            log.debug('Connected to issue "' + issue_id + '"')
+            log.debug('Posting comment to issue "' + issue_id + '"...')
+            jira_instance.add_comment(issue, comment)
+            log.debug('Posted comment to issue "' + issue_id + '"')
+        except:
+            log.error('Failed to post comment to issue "' + issue_id 
+                + '". This is bad.\n\n\t\tV E R Y   B A D.')
+            exit(1)
     else:
         log.debug('No issue-id found, exiting gracefully...')
         exit(0)

@@ -21,12 +21,13 @@ Simply copy the `gerrit-jira-hook`- and the corresponding `gerrit-jira-hook.conf
 Configure the hook by setting the appropriate values in `gerrit-jira-hook.config` for the Jira connection:
 
     [gerrit-jira-hook]
-        jira_url = https://jira.example.com
-        jira_user = username
-        jira_pass = access_token/password
-        gerrit_projects = All-Projects
+        jira_url = https://jira.example.com             # The remote Jira server instance
+        jira_user = username                            # A Jira user with permission to add comments to tickets
+        jira_pass = access_token/password               # A Jira API access token
+        gerrit_user = gerrit                            # The user running the Gerrit server instance
+        gerrit_projects = All-Projects                  # Run hook for all projects
         # OR:
-        gerrit_projects = project1,project2,project3
+        gerrit_projects = project1,project2,project3    # Run hook only for certain projects
 
 ### 3. Enabling the hook
 
@@ -36,4 +37,5 @@ Add the following configuration to `$GERRIT_HOME/etc/gerrit.config`:
         path = $GERRIT_HOME/hooks
         changeMergedHook = gerrit-jira-hook
 
-You should now see a comment being added to a Jira ticket whenever the corresponding valid Jira Issue-Id is found in the commit message. Enjoy!
+You should now see a comment being added to a Jira ticket whenever the corresponding valid Jira Issue-Id is found in the commit message.
+Enjoy!
