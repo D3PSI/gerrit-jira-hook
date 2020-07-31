@@ -32,6 +32,19 @@ PROJECTS = config.get('gerrit-jira-hook', 'gerrit_projects').split(',')
 GERRIT_USER = config.get('gerrit-jira-hook', 'gerrit_user')
 GERRIT_SSHD = 'ssh -p 29418 ' + GERRIT_USER + '@localhost gerrit'
 
+COMMENT_TEMPLATE = """Latest change for {issue_id}
+*{change_owner_username}* pushed a commit: 
+{change_url}
+Subject: *{subject}*
+Project: {project} 
+Branch: {branch} 
+Change-Id: {change_id} 
+Commit: {commit} 
+This change was reviewed and approved by *{submitter_username}*.
+"""
+
+COMMENT_TEMPLATE_REGEX = "Latest change for ([A-Z]+-[0-9]+)"
+
 
 def init():
     try:
@@ -57,7 +70,7 @@ def init():
         raise
 
 
-def find_issue_identifier(change, jira_instance):
+def find_issue_identifiers(change, jira_instance):
     log.debug('Running Gerrit query command...')
     proc = subprocess.Popen([GERRIT_SSHD, ' query --format TEXT change:', change, ' limit:1'], 
         stdout=subprocess.PIPE, shell=True)
@@ -84,19 +97,7 @@ def find_issue_identifier(change, jira_instance):
 
 
 def generate_comment(values, commit_information, issue_id):
-    comment_template = """
-    *{change_owner_username}* committed changes for {issue_id}: 
-    {change_url}
-    {{quote}}
-    Subject: *{subject}*
-    Project: {project} 
-    Branch: {branch} 
-    Change-Id: {change_id} 
-    Commit: {commit} 
-    {{quote}}
-    This change was reviewed and approved by *{submitter_username}*.
-    """
-    return comment_template.format(change_owner_username=values['change-owner-username'],
+    return COMMENT_TEMPLATE.format(change_owner_username=values['change-owner-username'],
                                    issue_id=issue_id,
                                    change_url=values['change-url'],
                                    subject=commit_information['subject'],
@@ -128,17 +129,28 @@ def jira_hook(values):
         log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
             + '" timed out')
         exit(1)
-    commit_information, issue_ids = find_issue_identifier(values['change'], jira_instance)
+    commit_information, issue_ids = find_issue_identifiers(values['change'], jira_instance)
     for issue_id in issue_ids:
         log.debug('Generating comment for issue "' + issue_id + '"...')
+        commit_information = {'project': 'service/tradelifecycle', 'subject': 'TestCommit'}
         comment = generate_comment(values, commit_information, issue_id)
         try:
+            log.debug('Trying to find and delete old comments on issue...')
+            issue = jira_instance.issue(issue_id)
+            comments = issue.fields.comment.comments
+            regex = re.compile(COMMENT_TEMPLATE_REGEX)
+            for c in comments:
+                if regex.match(c.body):
+                    log.debug('Deleting comment...')
+                    c.delete()
+                    log.debug('Comment deleted')
             log.debug('Posting comment to issue "' + issue_id + '"...')
             jira_instance.add_comment(issue_id, comment)
             log.debug('Posted comment to issue "' + issue_id + '"')
         except:
-            log.error('Failed to post comment to issue "' + issue_id 
-                + '". This is bad.\n\n\t\tV E R Y   B A D.\n')
+            log.error('Failed to update issue "' + issue_id 
+                + '". This is bad.\n\n\t\t\t\t\t\t\t\t\t\tV E R Y   B A D.\n')
+            raise
             exit(1)
     else:
         log.debug('No issue-id found, exiting gracefully...')
@@ -146,4 +158,4 @@ def jira_hook(values):
 
 
 if __name__ == "__main__":
-    jira_hook({})
+    init()
