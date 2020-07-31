@@ -4,7 +4,7 @@ A hook for our company's legacy Gerrit to integrate Change-Id's into Jira >=v7.0
 
 ## Dependencies
 
-This hook runs on Python 3 only. Install the dependencies with:
+This hook runs on Python 3 only. It requires the Gerrit hook plugin to be installed and active. Install the dependencies with:
 
     pip install -r requirements.txt
 
@@ -27,5 +27,13 @@ Configure the hook by setting the appropriate values in `gerrit-jira-hook.config
         gerrit_projects = All-Projects
         # OR:
         gerrit_projects = project1,project2,project3
+
+### 3. Enabling the hook
+
+Add the following configuration to `$GERRIT_HOME/etc/gerrit.config`:
+
+    [hooks]
+        path = $GERRIT_HOME/hooks
+        changeMergedHook = gerrit-jira-hook
 
 You should now see a comment being added to a Jira ticket whenever the corresponding valid Jira Issue-Id is found in the commit message. Enjoy!
