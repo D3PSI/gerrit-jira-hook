@@ -48,7 +48,7 @@ def init():
         for o, a in optlist:
             values[o[2:]] = a
             log.debug('CLI-Option ' + o + ':\t\t' + a)
-        if project in PROJECTS or PROJECTS == 'All-Projects':
+        if PROJECTS == 'All-Projects' or (values['project'] != None and values['project'] in PROJECTS):
             jira_hook(values)
         else:
             exit(1)
@@ -114,11 +114,12 @@ def jira_hook(values):
     a commit-message. The issue-id is extracted from the commig-message by 
     running a regular expression over it and seeing if it matches anything.
     '''
-    init()
     log.debug('Executing gerrit-jira-hook...')
     log.debug('Connecting to Jira-instance running at "' + JIRA_URL + '"...')
     try:
+        log.debug('Logging in to Jira as user "' + JIRA_USER + '"...')
         jira_instance = jira.JIRA(JIRA_URL, basic_auth=(JIRA_USER, JIRA_PASS), logging=True)
+        log.debug('Logged in to Jira')
     except (requests.exceptions.ConnectionError, jira.exceptions.JIRAError) as e:
         log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
             + '" failed')
@@ -132,15 +133,12 @@ def jira_hook(values):
         log.debug('Generating comment for issue "' + issue_id + '"...')
         comment = generate_comment(values, commit_information, issue_id)
         try:
-            log.debug('Connecting to issue "' + issue_id + '"...')
-            jira_instance.issue(issue_id)
-            log.debug('Connected to issue "' + issue_id + '"')
             log.debug('Posting comment to issue "' + issue_id + '"...')
-            jira_instance.add_comment(issue, comment)
+            jira_instance.add_comment(issue_id, comment)
             log.debug('Posted comment to issue "' + issue_id + '"')
         except:
             log.error('Failed to post comment to issue "' + issue_id 
-                + '". This is bad.\n\n\t\tV E R Y   B A D.')
+                + '". This is bad.\n\n\t\tV E R Y   B A D.\n')
             exit(1)
     else:
         log.debug('No issue-id found, exiting gracefully...')
@@ -148,4 +146,4 @@ def jira_hook(values):
 
 
 if __name__ == "__main__":
-    init()
+    jira_hook({})
