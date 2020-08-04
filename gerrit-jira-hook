@@ -26,11 +26,24 @@ config.read(config_path)
 JIRA_URL = config.get('gerrit-jira-hook', 'jira_url')
 JIRA_USER = config.get('gerrit-jira-hook', 'jira_user')
 JIRA_PASS = config.get('gerrit-jira-hook', 'jira_pass')
+jira_use_field = config.get('gerrit-jira-hook', 'jira_use_field')
+if jira_use_field.lower() == 'true':
+    JIRA_USE_FIELD = True
+    JIRA_FIELD = config.get('gerrit-jira-hook', 'jira_field')
+else:
+    JIRA_USE_FIELD = False
+jira_update_components = config.get('gerrit-jira-hook', 'jira_update_components')
+if jira_update_components.lower() == 'true':
+    JIRA_UPDATE_COMPONENTS = True
+    JIRA_COMPONENT_MAPPINGS = config.get('gerrit-project-to-jira-component-mappings')
+else:
+    JIRA_UPDATE_COMPONENTS = False
 
 PROJECTS = config.get('gerrit-jira-hook', 'gerrit_projects').split(',')
 
 GERRIT_USER = config.get('gerrit-jira-hook', 'gerrit_user')
-GERRIT_SSHD = 'ssh -p 29418 ' + GERRIT_USER + '@localhost gerrit'
+GERRIT_HOST = config.get('gerrit-jira-hook', 'gerrit_host')
+GERRIT_SSHD = 'ssh -p 29418 ' + GERRIT_USER + '@' + GERRIT_HOST + ' gerrit'
 
 COMMENT_TEMPLATE = """Latest change for {issue_id}
 *{change_owner_username}* pushed a commit: 
@@ -42,9 +55,9 @@ Change-Id: {change_id}
 Commit: {commit} 
 This change was reviewed and approved by *{submitter_username}*.
 """
-
 COMMENT_TEMPLATE_REGEX = "Latest change for ([A-Z]+-[0-9]+)"
 
+FIELD_TEMPLATE = "{project}: [{subject}|{change_url}]"
 
 def init():
     try:
@@ -96,16 +109,16 @@ def find_issue_identifiers(change, jira_instance):
         return commit_information, issues
 
 
-def generate_comment(values, commit_information, issue_id):
-    return COMMENT_TEMPLATE.format(change_owner_username=values['change-owner-username'],
-                                   issue_id=issue_id,
-                                   change_url=values['change-url'],
-                                   subject=commit_information['subject'],
-                                   project=commit_information['project'],
-                                   branch=values['branch'],
-                                   change_id=values['change'],
-                                   commit=values['commit'],
-                                   submitter_username=values['submitter-username'])
+def generate_text(template, values, commit_information, issue_id):
+    return template.format(change_owner_username=values['change-owner-username'],
+                           change_url=values['change-url'],
+                           issue_id=issue_id,
+                           subject=commit_information['subject'],
+                           project=commit_information['project'],
+                           branch=values['branch'],
+                           change_id=values['change'],
+                           commit=values['commit'],
+                           submitter_username=values['submitter-username'])
 
 
 def jira_hook(values):
@@ -131,22 +144,39 @@ def jira_hook(values):
         exit(1)
     commit_information, issue_ids = find_issue_identifiers(values['change'], jira_instance)
     for issue_id in issue_ids:
-        log.debug('Generating comment for issue "' + issue_id + '"...')
-        commit_information = {'project': 'service/tradelifecycle', 'subject': 'TestCommit'}
-        comment = generate_comment(values, commit_information, issue_id)
+        log.debug('Generating change information text for issue "' + issue_id + '"...')
         try:
-            log.debug('Trying to find and delete old comments on issue...')
             issue = jira_instance.issue(issue_id)
-            comments = issue.fields.comment.comments
-            regex = re.compile(COMMENT_TEMPLATE_REGEX)
-            for c in comments:
-                if regex.match(c.body):
-                    log.debug('Deleting comment...')
-                    c.delete()
-                    log.debug('Comment deleted')
-            log.debug('Posting comment to issue "' + issue_id + '"...')
-            jira_instance.add_comment(issue_id, comment)
-            log.debug('Posted comment to issue "' + issue_id + '"')
+            log.debug('Updating issue "' + issue_id + '"...')
+            if JIRA_USE_FIELD:
+                fields = jira_instance.fields()
+                field_map = {field['name'] : field['id'] for field in fields}
+                field_text = getattr(issue.fields, field_map[JIRA_FIELD])
+                # TODO: Delete line matching values['project']
+                new_change_text = generate_text(FIELD_TEMPLATE, values, commit_information, issue_id)
+                issue.update(notify=False, fields={JIRA_FIELD : field_text})
+            else:
+                new_change_text = generate_text(COMMENT_TEMPLATE, values, commit_information, issue_id)
+                log.debug('Trying to find and delete old comments on issue...')
+                comments = issue.fields.comment.comments
+                regex = re.compile(COMMENT_TEMPLATE_REGEX)
+                for c in comments:
+                    if regex.match(c.body) && re.match(values['project'], c.body):
+                        log.debug('Deleting comment...')
+                        c.delete()
+                        log.debug('Comment deleted')
+                log.debug('Posting comment to issue "' + issue_id + '"...')
+                jira_instance.add_comment(issue_id, comment)
+                log.debug('Posted comment to issue "' + issue_id + '"')
+            if JIRA_UPDATE_COMPONENTS:
+                new_component_name = JIRA_COMPONENT_MAPPINGS[values['project']]
+                components = []
+                for component in issue.fields.components:
+                    components.append({'name' : component.name})
+                if new_component not in components.values():
+                    components.append({'name' : new_component_name})
+                issue.update(notify=False, fields={'Components': components})
+            log.debug('Successfully updated issue "' + issue_id + '"')
         except:
             log.error('Failed to update issue "' + issue_id 
                 + '". This is bad.\n\n\t\t\t\t\t\t\t\t\t\tV E R Y   B A D.\n')

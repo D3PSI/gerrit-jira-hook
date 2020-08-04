@@ -24,10 +24,18 @@ Configure the hook by setting the appropriate values in `gerrit-jira-hook.config
         jira_url = https://jira.example.com             # The remote Jira server instance
         jira_user = username                            # A Jira user with permission to add comments to tickets
         jira_pass = access_token/password               # A Jira API access token
+        jira_use_field = true                           # If set to true change information will be updated in the field specified below
+        jira_field = jira_field_name                    # The field to update
+        jira_update_components = true                   # Automatically update component list in Jira, if true [gerrit-project-to-jira-component-mappings]-section must be configured, otherwise can be left empty
         gerrit_user = gerrit_jira                       # A user with full SSH access to Gerrit
+        gerrit_host = localhost                         # The Gerrit sshd host
         gerrit_projects = All-Projects                  # Run hook for all projects
-        # OR:
+                                                        # OR:
         gerrit_projects = project1,project2,project3    # Run hook only for certain projects
+
+    [gerrit-project-to-jira-component-mappings]         # List all your Gerrit projects and their corresponding Jira component mappings here
+        gerrit_project1 = jira_component1
+        gerrit_project2 = jira_component2
 
 The `gerrit_user` must be a user with full SSH access to Gerrit. It must be configured to have access via authorized public key.
 
