@@ -35,7 +35,7 @@ else:
 jira_update_components = config.get('gerrit-jira-hook', 'jira_update_components')
 if jira_update_components.lower() == 'true':
     JIRA_UPDATE_COMPONENTS = True
-    JIRA_COMPONENT_MAPPINGS = config.get('gerrit-project-to-jira-component-mappings')
+    JIRA_COMPONENT_MAPPINGS = config['gerrit-project-to-jira-component-mappings']
 else:
     JIRA_UPDATE_COMPONENTS = False
 
@@ -46,13 +46,13 @@ GERRIT_HOST = config.get('gerrit-jira-hook', 'gerrit_host')
 GERRIT_SSHD = 'ssh -p 29418 ' + GERRIT_USER + '@' + GERRIT_HOST + ' gerrit'
 
 COMMENT_TEMPLATE = """Latest change for {issue_id}
-*{change_owner_username}* pushed a commit: 
+*{change_owner_username}* pushed a commit:
 {change_url}
 Subject: *{subject}*
-Project: {project} 
-Branch: {branch} 
-Change-Id: {change_id} 
-Commit: {commit} 
+Project: {project}
+Branch: {branch}
+Change-Id: {change_id}
+Commit: {commit}
 This change was reviewed and approved by *{submitter_username}*.
 """
 COMMENT_TEMPLATE_REGEX = "Latest change for ([A-Z]+-[0-9]+)"
@@ -166,7 +166,7 @@ def jira_hook(values):
                 comments = issue.fields.comment.comments
                 regex = re.compile(COMMENT_TEMPLATE_REGEX)
                 for c in comments:
-                    if regex.match(c.body) and re.match(values['project'], c.body):
+                    if regex.match(c.body) and re.search('Project: ' + values['project'], c.body):
                         log.debug('Deleting comment...')
                         c.delete()
                         log.debug('Comment deleted')
