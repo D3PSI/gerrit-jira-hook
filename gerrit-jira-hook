@@ -102,7 +102,7 @@ def find_issue_identifiers(change, jira_instance):
         issue_pattern = '(%s-[0-9]+)'
         projects = jira_instance.projects()
         for project in projects:
-            matches = re.findall(issue_pattern % project, subject)
+            matches = re.findall(issue_pattern % project, commit_information['subject'])
             for m in matches:
                 log.debug('Found issue-id: ' + m)
                 issues.append(m)
@@ -137,6 +137,7 @@ def jira_hook(values):
     except (requests.exceptions.ConnectionError, jira.exceptions.JIRAError) as e:
         log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
             + '" failed')
+        log.error(e)
         exit(1)
     except requests.exceptions.ConnectTimeout:
         log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
@@ -152,8 +153,12 @@ def jira_hook(values):
                 fields = jira_instance.fields()
                 field_map = {field['name'] : field['id'] for field in fields}
                 field_text = getattr(issue.fields, field_map[JIRA_FIELD])
-                # TODO: Delete line matching values['project']
-                new_change_text = generate_text(FIELD_TEMPLATE, values, commit_information, issue_id)
+                field_text_lines = []
+                for line in field_text:
+                    if not values['project'] in line.split(':')[0]:
+                        field_text_lines.append(line)
+                field_text_lines.append(generate_text(FIELD_TEMPLATE, values, commit_information, issue_id))
+                field_text = '\n'.join(sorted(field_text_lines))
                 issue.update(notify=False, fields={JIRA_FIELD : field_text})
             else:
                 new_change_text = generate_text(COMMENT_TEMPLATE, values, commit_information, issue_id)
@@ -161,19 +166,19 @@ def jira_hook(values):
                 comments = issue.fields.comment.comments
                 regex = re.compile(COMMENT_TEMPLATE_REGEX)
                 for c in comments:
-                    if regex.match(c.body) && re.match(values['project'], c.body):
+                    if regex.match(c.body) and re.match(values['project'], c.body):
                         log.debug('Deleting comment...')
                         c.delete()
                         log.debug('Comment deleted')
                 log.debug('Posting comment to issue "' + issue_id + '"...')
-                jira_instance.add_comment(issue_id, comment)
+                jira_instance.add_comment(issue_id, new_change_text)
                 log.debug('Posted comment to issue "' + issue_id + '"')
             if JIRA_UPDATE_COMPONENTS:
                 new_component_name = JIRA_COMPONENT_MAPPINGS[values['project']]
                 components = []
                 for component in issue.fields.components:
                     components.append({'name' : component.name})
-                if new_component not in components.values():
+                if new_component_name not in [c.values() for c in components]:
                     components.append({'name' : new_component_name})
                 issue.update(notify=False, fields={'Components': components})
             log.debug('Successfully updated issue "' + issue_id + '"')
@@ -181,7 +186,6 @@ def jira_hook(values):
             log.error('Failed to update issue "' + issue_id 
                 + '". This is bad.\n\n\t\t\t\t\t\t\t\t\t\tV E R Y   B A D.\n')
             raise
-            exit(1)
     if len(issue_ids) > 0:
         log.debug('Success, exiting gracefully')
     else:
