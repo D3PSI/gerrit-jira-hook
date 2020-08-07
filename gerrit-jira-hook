@@ -154,12 +154,13 @@ def jira_hook(values):
                 field_map = {field['name'] : field['id'] for field in fields}
                 field_text = getattr(issue.fields, field_map[JIRA_FIELD])
                 field_text_lines = []
-                for line in field_text:
-                    if not values['project'] in line.split(':')[0]:
-                        field_text_lines.append(line)
+                if field_text:
+                    for line in field_text.splitlines():
+                        if not values['project'] in line.split(':')[0]:
+                            field_text_lines.append(line)
                 field_text_lines.append(generate_text(FIELD_TEMPLATE, values, commit_information, issue_id))
                 field_text = '\n'.join(sorted(field_text_lines))
-                issue.update(notify=False, fields={JIRA_FIELD : field_text})
+                issue.update(notify=False, fields={field_map[JIRA_FIELD] : field_text})
             else:
                 new_change_text = generate_text(COMMENT_TEMPLATE, values, commit_information, issue_id)
                 log.debug('Trying to find and delete old comments on issue...')
