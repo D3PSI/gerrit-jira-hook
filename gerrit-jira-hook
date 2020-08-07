@@ -68,7 +68,7 @@ def init():
         arguments = ['change', 'change-url', 'change-owner',
                     'change-owner-username', 'project',
                     'commit', 'branch', 'submitter',
-                    'submitter-username' 'newrev', 'topic']
+                    'submitter-username', 'newrev', 'topic']
         optlist, args = getopt.getopt(sys.argv[1:], '', [i + '=' for i in arguments])
         values = {}
         for o, a in optlist:

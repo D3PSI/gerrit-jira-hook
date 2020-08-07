@@ -47,5 +47,5 @@ Add the following configuration to `$GERRIT_HOME/etc/gerrit.config`:
         path = $GERRIT_HOME/hooks
         changeMergedHook = gerrit-jira-hook
 
-You should now see a comment being added to a Jira ticket whenever the corresponding valid Jira Issue-Id is found in the commit message.
+You should now see your Jira ticket being updated whenever the corresponding valid Jira Issue-Id is found in the commit message.
 Enjoy!
