@@ -181,7 +181,7 @@ def jira_hook(values):
                     components.append({'name' : component.name})
                 if new_component_name not in [c.values() for c in components]:
                     components.append({'name' : new_component_name})
-                issue.update(notify=False, fields={'Components': components})
+                issue.update(notify=False, fields={'components': components})
             log.debug('Successfully updated issue "' + issue_id + '"')
         except:
             log.error('Failed to update issue "' + issue_id 
