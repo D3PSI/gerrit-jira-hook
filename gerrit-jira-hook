@@ -87,8 +87,8 @@ def find_issue_identifiers(change, jira_instance):
     log.debug('Running Gerrit query command...')
     proc = subprocess.Popen([GERRIT_SSHD, ' query --format TEXT change:', change, ' limit:1'], 
         stdout=subprocess.PIPE, shell=True)
-    (out, status) = proc.communicate()
-    if status != 0:
+    out = proc.communicate()[0]
+    if proc.returncode != 0:
         log.error('Failed to run Gerrit query command')
         exit(1)
     else:
@@ -134,14 +134,14 @@ def jira_hook(values):
         log.debug('Logging in to Jira as user "' + JIRA_USER + '"...')
         jira_instance = jira.JIRA(JIRA_URL, basic_auth=(JIRA_USER, JIRA_PASS), logging=True)
         log.debug('Logged in to Jira')
+    except requests.exceptions.ConnectTimeout:
+        log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
+            + '" timed out')
+        exit(1)
     except (requests.exceptions.ConnectionError, jira.exceptions.JIRAError) as e:
         log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
             + '" failed')
         log.error(e)
-        exit(1)
-    except requests.exceptions.ConnectTimeout:
-        log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
-            + '" timed out')
         exit(1)
     commit_information, issue_ids = find_issue_identifiers(values['change'], jira_instance)
     for issue_id in issue_ids:
