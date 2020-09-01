@@ -2,11 +2,14 @@
 
 A hook for our company's legacy Gerrit to integrate Change-Id's into Jira >=v7.0
 
-## Dependencies
+## Build
 
-This hook runs on Python 3 only. It requires the Gerrit hook plugin to be installed and active. Install the dependencies with:
+Build the standalone executable using `pyinstaller`:
 
-    pip install -r requirements.txt
+    pip install pyinstaller
+    pyinstaller --onefile gerrit-jira-hook.py
+
+This will give the executable directly containing the entire Python runtime and all dependencies in `dist/gerrit-jira-hook`.
 
 ## Installation
 
