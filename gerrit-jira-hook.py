@@ -63,7 +63,7 @@ def init():
         open(log_path, 'a+').close()
         if len(sys.argv) < 2:
             log.error('Insufficient arguments supplied')
-            exit()
+            sys.exit()
         arguments = ['change', 'change-url', 'change-owner',
                     'change-owner-username', 'project',
                     'commit', 'branch', 'submitter',
@@ -76,7 +76,7 @@ def init():
         if PROJECTS == 'All-Projects' or (values['project'] != None and values['project'] in PROJECTS):
             jira_hook(values)
         else:
-            exit(1)
+            sys.exit(1)
     except PermissionError:
         print('Permission Error creating/opening log at "' + log_path + '"')
         raise
@@ -89,7 +89,7 @@ def find_issue_identifiers(change, jira_instance):
     out = proc.communicate()[0]
     if proc.returncode != 0:
         log.error('Failed to run Gerrit query command')
-        exit(1)
+        sys.exit(1)
     else:
         commit_information = {}
         commit_information['subject'] = re.search('subject: (.*)\n', out).group(1)
@@ -136,12 +136,12 @@ def jira_hook(values):
     except requests.exceptions.ConnectTimeout:
         log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
             + '" timed out')
-        exit(1)
+        sys.exit(1)
     except (requests.exceptions.ConnectionError, jira.exceptions.JIRAError) as e:
         log.error('Connection to "' + JIRA_URL + '" as user "' + JIRA_USER
             + '" failed')
         log.error(e)
-        exit(1)
+        sys.exit(1)
     commit_information, issue_ids = find_issue_identifiers(values['change'], jira_instance)
     for issue_id in issue_ids:
         log.debug('Generating change information text for issue "' + issue_id + '"...')
@@ -190,7 +190,7 @@ def jira_hook(values):
         log.debug('Success, exiting gracefully')
     else:
         log.debug('No issue-id found, exiting gracefully...')
-        exit(0)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
