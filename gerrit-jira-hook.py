@@ -18,7 +18,7 @@ log_path = os.path.join(os.environ.get('GERRIT_HOME', '/var/gerrit'), 'hooks.log
 FORMAT = '%(asctime)-12s %(levelname)-8s %(message)s'
 log.basicConfig(format=FORMAT, filename=log_path, level=log.DEBUG)
 
-config_path = os.path.join(os.path.dirname(__file__), 'gerrit-jira-hook.config')
+config_path = os.path.join(os.environ.get('GERRIT_HOME', '/var/gerrit'), 'gerrit-jira-hook.config')
 config = configparser.RawConfigParser()
 config.read(config_path)
 
