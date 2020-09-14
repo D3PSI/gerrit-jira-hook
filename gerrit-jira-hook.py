@@ -112,7 +112,7 @@ def find_issue_identifiers(change, jira_instance):
 
 def generate_text(template, values, commit_information, issue_id):
     return template.format(change_owner_username=values['change-owner-username'],
-                           change_url=values['change-url'],
+                           change_url='https://build.revendex.com/gerrit/c/' + commit_information['project'] + '/+/' + values['change-url'],
                            issue_id=issue_id,
                            subject=commit_information['subject'],
                            project=commit_information['project'],
