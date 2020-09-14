@@ -42,7 +42,6 @@ PROJECTS = config.get('gerrit-jira-hook', 'gerrit_projects').split(',')
 
 GERRIT_USER = config.get('gerrit-jira-hook', 'gerrit_user')
 GERRIT_HOST = config.get('gerrit-jira-hook', 'gerrit_host')
-GERRIT_SSHD = 'ssh -p 29418 ' + GERRIT_USER + '@' + GERRIT_HOST + ' gerrit'
 
 COMMENT_TEMPLATE = """Latest change for {issue_id}
 *{change_owner_username}* pushed a commit:
@@ -85,7 +84,7 @@ def init():
 
 def find_issue_identifiers(change, jira_instance):
     log.debug('Running Gerrit query command...')
-    proc = subprocess.Popen([GERRIT_SSHD, ' query --format TEXT change:', change, ' limit:1'], 
+    proc = subprocess.Popen('ssh -p 29418 ' + GERRIT_USER + '@' + GERRIT_HOST + ' gerrit query --format TEXT change:' + change + ' limit:1',
         stdout=subprocess.PIPE, shell=True)
     out = proc.communicate()[0]
     if proc.returncode != 0:
