@@ -12,6 +12,7 @@ import configparser
 import getopt
 import logging as log
 import jira
+from urllib.parse import unquote
 
 
 log_path = os.path.join(os.environ.get('GERRIT_HOME', '/var/gerrit'), 'hooks.log')
@@ -72,6 +73,7 @@ def init():
         for o, a in optlist:
             values[o[2:]] = a
             log.debug('CLI-Option ' + o + ':\t\t' + a)
+        values['change'] = unquote(values['change'])
         if PROJECTS[0] == 'All-Projects' or (values['project'] != None and values['project'] in PROJECTS):
             jira_hook(values)
         else:
@@ -101,7 +103,7 @@ def find_issue_identifiers(change, jira_instance):
         issue_pattern = '(%s-[0-9]+)'
         projects = jira_instance.projects()
         for project in projects:
-            matches = re.findall(issue_pattern % project, commit_information['subject'])
+            matches = re.findall(issue_pattern % project.name, commit_information['subject'])
             for m in matches:
                 log.debug('Found issue-id: ' + m)
                 issues.append(m)
