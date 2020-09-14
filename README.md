@@ -21,7 +21,7 @@ Simply copy the `gerrit-jira-hook`- and the corresponding `gerrit-jira-hook.conf
 
 ### 2. Configuring the hook
 
-Configure the hook by setting the appropriate values in `gerrit-jira-hook.config` for the Jira connection:
+Configure the hook by setting the appropriate values in `$GERRIT_HOME/gerrit-jira-hook.config` for the Jira connection:
 
     [gerrit-jira-hook]
         jira_url = https://jira.example.com             # The remote Jira server instance

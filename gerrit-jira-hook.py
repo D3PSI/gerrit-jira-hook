@@ -14,7 +14,7 @@ import logging as log
 import jira
 
 
-log_path = os.path.join(os.path.dirname(__file__), 'hooks.log')
+log_path = os.path.join(os.environ.get('GERRIT_HOME', '/var/gerrit'), 'hooks.log')
 FORMAT = '%(asctime)-12s %(levelname)-8s %(message)s'
 log.basicConfig(format=FORMAT, filename=log_path, level=log.DEBUG)
 
