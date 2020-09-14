@@ -86,7 +86,7 @@ def find_issue_identifiers(change, jira_instance):
     log.debug('Running Gerrit query command...')
     proc = subprocess.Popen('ssh -p 29418 ' + GERRIT_USER + '@' + GERRIT_HOST + ' gerrit query --format TEXT change:' + change + ' limit:1',
         stdout=subprocess.PIPE, shell=True)
-    out = proc.communicate()[0]
+    out = proc.communicate()[0].decode()
     if proc.returncode != 0:
         log.error('Failed to run Gerrit query command')
         sys.exit(1)
