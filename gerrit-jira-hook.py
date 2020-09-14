@@ -73,7 +73,7 @@ def init():
         for o, a in optlist:
             values[o[2:]] = a
             log.debug('CLI-Option ' + o + ':\t\t' + a)
-        if PROJECTS == 'All-Projects' or (values['project'] != None and values['project'] in PROJECTS):
+        if PROJECTS[0] == 'All-Projects' or (values['project'] != None and values['project'] in PROJECTS):
             jira_hook(values)
         else:
             log.error('No project found')
