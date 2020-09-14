@@ -76,6 +76,7 @@ def init():
         if PROJECTS == 'All-Projects' or (values['project'] != None and values['project'] in PROJECTS):
             jira_hook(values)
         else:
+            log.error('No project found')
             sys.exit(1)
     except PermissionError:
         print('Permission Error creating/opening log at "' + log_path + '"')
