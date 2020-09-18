@@ -13,11 +13,11 @@ This will give the executable directly containing the entire Python runtime and 
 
 ## Installation
 
-Navigate to the Gerrit instance's Gerrit directory (usually in `/var/gerrit/`). This directory will be referred to as `$GERRIT_HOME`.
+Navigate to the Gerrit instance's Gerrit directory (usually in `/var/gerrit/`). This directory will be referred to as `$GERRIT_HOME`. `$GERRIT_SITE` is the site's directory.
 
 ### 1. Installing the hook
 
-Simply copy the `gerrit-jira-hook`- and the corresponding `gerrit-jira-hook.config`-file to `$GERRIT_HOME/hooks`. Verify that the executable actually has the correct permissions and ownership to be able to run. That's it. Simple as that.
+Simply copy the `gerrit-jira-hook` executable to `$GERRIT_SITE/hooks` and the corresponding `gerrit-jira-hook.config`-file to `$GERRIT_HOME`. Verify that the executable actually has the correct permissions and ownership to be able to run. That's it. Simple as that.
 
 ### 2. Configuring the hook
 
