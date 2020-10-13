@@ -103,7 +103,7 @@ def find_issue_identifiers(change, jira_instance):
         issue_pattern = '(%s-[0-9]+)'
         projects = jira_instance.projects()
         for project in projects:
-            matches = re.findall(issue_pattern % project.key, commit_information['subject'])
+            matches = re.findall(issue_pattern % project.key.lower(), commit_information['subject'].lower())
             for m in matches:
                 log.debug('Found issue-id: ' + m)
                 issues.append(m)
